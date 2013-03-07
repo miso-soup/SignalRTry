@@ -1,0 +1,50 @@
+﻿@{
+    ViewBag.Title = "Index";
+}
+
+<div>
+	<h1>Are you hungry?</h1>
+</div>
+<div>
+	<input type="button" value="Yes" class="response-button" />
+	<input type="button" value="No" class="response-button" />
+</div>
+
+<div>
+	<ul id="list"></ul>
+</div>
+
+@section scripts{
+	
+	<script src="~/Scripts/json2.js"></script>
+	<script src="~/Scripts/jquery.signalR-1.0.1.js"></script>
+	<script src="~/signalr/hubs"></script>
+
+	<script type="text/javascript">
+		$(function () {
+			var connection = $.hubConnection();
+			
+			//接続します
+			connection.start().done(function () {
+				//接続完了後の処理を行う場合、ここに記述
+			});
+
+			var questionHub = connection.createHubProxy("questionHub");
+
+			$(".response-button").on('click', function () {
+				var responseType = $(this).val();
+
+				//サーバへ返答内容を送信します
+				questionHub.invoke("Answered", responseType);
+			});
+
+			//サーバーから、ユーザの答えが送信された時
+			questionHub.on("NotifyAnswer", function (message, datetime) {
+				$("#list").prepend(
+					$('<li />').text(message + " ( " + datetime + " ) ")
+				);
+			});
+
+		});
+	</script>
+}

@@ -1,0 +1,119 @@
+﻿@{
+  ViewBag.Title = "SignalR Sample";
+}
+
+<h1>@ViewBag.Title</h1>
+
+<div>
+	<img src="~/Content/user.png" alt="Yes" />
+	<span data-bind="text: connectionCount"></span>人 接続中
+
+</div>
+
+<div class="section">
+	<h2>Are you hungry?</h2>
+
+	<div>
+		<input type="button" value="Yes" class="response-button btn" data-bind="attr: { 'disabled': !canAnswer() }"/>
+		<input type="button" value="No" class="response-button btn"  data-bind="attr: { 'disabled': !canAnswer() }"/>
+	</div>
+
+	<ul data-bind="template: { foreach: answers, afterAdd: answerFadeIn }" id="list">
+		<li class="item">
+			<div>
+				<!-- ko if: type === 'Yes' -->
+				<img src="~/Content/yes.png" alt="Yes" class="mark" />
+				<!-- /ko -->
+				<!-- ko if: type === 'No' -->
+				<img src="~/Content/no.png" alt="No"  class="mark" />
+				<!-- /ko -->				
+				<span data-bind="text: type" class="type"></span>
+			</div>
+			<div data-bind="text: datetime" class="datetime"></div>
+		</li>
+	</ul>
+</div>
+
+<div class="section try">
+	
+	<hr />
+	<h2>Try!</h2>
+
+	<div>複数ブラウザで確認してみる</div>
+	<div class="try-image">
+		<img src="~/Content/multi.png" id="multi" class="demo"/>	
+	</div>
+
+	
+	<div>携帯とPCで確認してみる</div>
+	<div class="try-image">
+		<img src="~/Content/mobile.png" id="mobile" class="demo"/>	
+	</div>
+</div>
+
+
+@section scripts{  
+  <script src="~/Scripts/knockout-2.2.0.js"></script>
+	<script src="~/Scripts/json2.js"></script>
+	<script src="~/Scripts/jquery.signalR-1.0.1.js"></script>
+	<script src="~/signalr/hubs"></script>
+
+	<script type="text/javascript">
+	  $(function () {
+
+		function answer(data) {
+			this.type = data.type;
+			this.datetime = data.datetime;
+	    }
+		
+	    function viewModel() {
+			var self = this;
+			self.answers = ko.observableArray([]);
+			self.connectionCount = ko.observable('...');
+			self.canAnswer = ko.observable(false);
+
+			self.addAnswer = function (type, datetime) {
+				var model = new answer({ type: type, datetime: datetime });
+				self.answers.unshift(model);
+			}
+	    	
+			self.answerFadeIn = function (element, index, data) {
+				$(element).filter("li").hide().fadeIn();
+			}
+
+			self.acceptAnswer = function () {
+				self.canAnswer(true);
+			}
+	    }
+
+	    var viewModel = new viewModel();
+	    ko.applyBindings(viewModel);
+
+		var connection = $.hubConnection();
+			
+		//接続します
+		connection.start().done(function () {
+			viewModel.acceptAnswer();
+		});
+			
+		var questionHub = connection.createHubProxy("questionHub");
+
+		$(".response-button").on('click', function () {
+			var responseType = $(this).val();
+
+			//サーバへ返答内容を送信します
+			questionHub.invoke("Answered", responseType);
+		});
+
+		//サーバーから、ユーザの答えが送信された時
+		questionHub.on("NotifyAnswer", function (message, datetime) {
+			viewModel.addAnswer(message, datetime);
+		});
+
+		questionHub.on("sendConnectionCount", function (count) {
+			viewModel.connectionCount(count);
+		});
+			
+	});
+	</script>
+}
